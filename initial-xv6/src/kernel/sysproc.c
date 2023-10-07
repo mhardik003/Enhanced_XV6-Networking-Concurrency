@@ -6,6 +6,21 @@
 #include "spinlock.h"
 #include "proc.h"
 
+/*
+  MANUAL CODE WRITTEN FOR ASSIGNMENT
+*/
+
+
+uint64
+sys_getreadcount(void)
+{
+  return myproc()->readcount;
+}
+
+/*
+  MANUAL CODE ENDS
+*/
+
 uint64
 sys_exit(void)
 {
@@ -108,3 +123,6 @@ sys_waitx(void)
     return -1;
   return ret;
 }
+
+
+
