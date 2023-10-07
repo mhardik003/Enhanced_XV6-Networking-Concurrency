@@ -1,0 +1,10 @@
+*.d
+*.o
+*.asm
+*.sym
+*.out
+*.S
+_*
+kernel
+mkfs
+initcode
