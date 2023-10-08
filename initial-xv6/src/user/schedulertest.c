@@ -18,17 +18,21 @@ int main()
       break;
     if (pid == 0)
     {
+#ifndef FCFS  // added
       if (n < IO)
       {
         sleep(200); // IO bound processes
       }
       else
       {
+#endif  // added, since don't want to sleep for CPU bound processes for FCFS
         for (volatile int i = 0; i < 1000000000; i++)
         {
         } // CPU bound process
+#ifndef FCFS  //added
       }
-      // printf("Process %d finished\n", n);
+#endif
+      printf("Process %d finished\n", n);
       exit(0);
     }
   }

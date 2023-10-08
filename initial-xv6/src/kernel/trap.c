@@ -9,6 +9,9 @@
 struct spinlock tickslock;
 uint ticks;
 
+extern queue Queue[4];       // Queue of processes for MLFQ
+extern Node lis_proc[NPROC]; // List of processes
+
 extern char trampoline[], uservec[], userret[];
 
 // in kernelvec.S, calls kerneltrap().
@@ -112,9 +115,31 @@ void usertrap(void)
       }
     }
 
-    release(&p->lock);
+    release(&p->lock); // Release the lock.
+
+#if defined(RR)
+    yield(); // Round Robin
+#elif defined(MLFQ)
+
+// Check if the current process exists and is in a RUNNING state
+if (myproc() && myproc()->state == RUNNING)
+{
+    struct proc *p = myproc(); // Get the current process
+
+    // Check if the process has exhausted its timeslice
+    if (p->timeslice <= 0) 
+    {
+        // Check if the process is not in the last queue
+        if (p->level < 3) 
+        {
+            p->level++; // Move the process to the next queue
+            yield();    // Relinquish the processor
+        }
+    }
+}
+#endif
   }
-  yield();
+
   usertrapret();
 }
 
@@ -186,7 +211,21 @@ void kerneltrap()
 
   // give up the CPU if this is a timer interrupt.
   if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+  {
+#ifdef RR
     yield();
+#elif defined(MLFQ)
+    struct proc *p = myproc();
+    if (p->timeslice <= 0)
+    {
+      if (p->level < 3)
+      {
+        p->level = p->level + 1;
+        yield();
+      }
+    }
+#endif
+  }
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.

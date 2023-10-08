@@ -108,6 +108,13 @@ struct proc
   int num_ticks;
   struct trapframe *alarm_trapf;
 
+  // For scheduling
+  int level;          // level or queue number
+  int check_interval; // check whether proc is in any queue or not
+  int timeslice;      // timeslice in the current queue
+  int entry_time;     // Entry time in this queue
+  int run_time[4];    // run time in 4 queues
+
   /*
 
   END OF MANUAALLY DEFINED VARIABLES
@@ -141,3 +148,32 @@ struct proc
 };
 
 extern struct proc proc[NPROC];
+
+/*
+  HELPER FUNCTIONS FOR MLFQ
+*/
+
+typedef struct node // Node for the queue
+{
+  struct proc *curr_proc;
+  struct node *next;
+} Node;
+
+typedef struct QUEUE // Queue for MLFQ
+{
+  struct node *head;
+  int curr_size;
+} queue;
+
+void enqueue(Node **head, struct proc *p);                              // Enqueue a process in the queue
+struct proc *front(Node **head);                                        // Return the front process in the queue
+void dequeue(Node **head);                                              // Dequeue the front process in the queue
+void delete(Node **head, uint pid);                                     // Delete a process from the queue
+Node *findAvailableNode();                                              // Find an available node in the queue
+void appendToQueue(Node *head, Node *newNode);                          // Append a node to the queue
+void initializeQueues(queue *queues, int numQueues);                    // Initialize the queues
+void initializeProcessList(Node *processList, int numProcesses); // Initialize the process list
+
+/*
+ END OF FUNCTIONS FOR MLFQ
+*/

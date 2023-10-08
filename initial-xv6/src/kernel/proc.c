@@ -5,6 +5,36 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include <stddef.h>
+
+// Declaration of the queues for the processes for FCFS
+queue Queue[4];            // 4 queues for MLFQ
+Node processesList[NPROC]; // List of processes
+
+// #ifdef MLFQ
+// // Initialize queues
+// void initializeQueues(Queue *queues, int numQueues)
+// {
+//   for (int i = 0; i < numQueues; i++)
+//   {
+//     queues[i].head = NULL;
+//     queues[i].curr_size = 0;
+//   }
+// }
+
+// // Initialize process list
+// void initializeProcessList(ProcessList *processList, int numProcesses)
+// {
+//   for (int i = 0; i < numProcesses; i++)
+//   {
+//     processList[i].curr_proc = NULL;
+//     processList[i].next = NULL;
+//   }
+// }
+
+// initializeQueues(Queue, 4);
+// initializeProcessList(processesList, NPROC);
+// #endif
 
 struct cpu cpus[NCPU];
 
@@ -56,7 +86,124 @@ void procinit(void)
     p->state = UNUSED;
     p->kstack = KSTACK((int)(p - proc));
   }
+  // Setting up QUEUES for scheduler
+
+#ifdef MLFQ
+  for (int i = 0; i < 4; i++)
+  {
+    Queue[i].head = 0;
+    Queue[i].curr_size = 0;
+  }
+  for (int i = 0; i < NPROC; i++)
+  {
+    processesList[i].curr_proc = 0;
+    processesList[i].next = 0;
+  }
+#endif
 }
+
+/*
+  MLFQ HELPER FUNCTIONS START
+*/
+
+// Enqueue a process to the queue
+void enqueue(Node **head, struct proc *p)
+{
+  Node *newNode = findAvailableNode(); // Find an available node
+  newNode->curr_proc = p;
+  newNode->next = NULL;
+
+  if (*head == NULL) // If the queue is empty, new node is the head
+  {
+    *head = newNode;
+  }
+  else // Otherwise, append to the end of the queue
+  {
+    appendToQueue(*head, newNode);
+  }
+}
+
+// Remove the front process from the queue
+void dequeue(Node **head)
+{
+  if (*head == NULL)
+  {
+    return;
+  }
+  Node *temp = *head;
+  *head = (*head)->next;
+  temp->curr_proc = NULL;
+  temp->next = NULL;
+}
+
+// Find an available node in the process list
+Node *findAvailableNode()
+{
+  for (int i = 0; i < NPROC; i++)
+  {
+    if (processesList[i].curr_proc == NULL)
+    {
+      return &(processesList[i]);
+    }
+  }
+  return NULL; // No available node found
+}
+
+// Append a node to the end of the queue
+void appendToQueue(Node *head, Node *newNode)
+{
+  Node *current = head;
+  while (current->next != NULL)
+  {
+    current = current->next;
+  }
+  current->next = newNode;
+}
+
+// Get the front process of the queue without removing it
+struct proc *front(Node **head)
+{
+  if (*head == NULL)
+  {
+    return NULL;
+  }
+  return (*head)->curr_proc; // Return the front process
+}
+
+// Delete a process with a specific PID from the queue
+void delete(Node **head, uint pid)
+{
+  if (*head == NULL)
+  {
+    return;
+  }
+  if ((*head)->curr_proc->pid == pid)
+  {
+    Node *temp = *head;
+    *head = (*head)->next;
+    temp->curr_proc = NULL;
+    temp->next = NULL;
+    return;
+  }
+
+  Node *current = *head;
+  while (current->next != NULL && current->next->curr_proc->pid != pid)
+  {
+    current = current->next;
+  }
+
+  if (current->next != NULL) // PID found
+  {
+    Node *temp = current->next;
+    current->next = current->next->next;
+    temp->curr_proc = NULL;
+    temp->next = NULL;
+  }
+}
+
+/*
+  END OF HELPER FUNCTIONS FOR MLFQ
+*/
 
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
@@ -136,6 +283,17 @@ found:
   p->interval = 0;       // added   // to keep track of the interval
   p->num_ticks = 0;      // added   // to keep track of the number of ticks
   p->alarm_trapf = 0;    // added   // to keep track of the trapframe
+
+  // for scheduling
+  p->level = 0;          // added // to keep track of the level of the process
+  p->timeslice = 0;      // added // to keep track of the timeslice of the process
+  p->entry_time = ticks; // added // to keep track of the entry time of the process
+  p->check_interval = 0; // added // to keep track of the interval of the process
+
+  for (int i = 0; i <= 3; i++)
+  {
+    p->run_time[i] = 0;
+  }
 
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0)
@@ -474,11 +632,129 @@ void scheduler(void)
   struct cpu *c = mycpu();
 
   c->proc = 0;
+#ifdef FCFS
+  printf("FCFS has been chosen as the scheduler for the OS\n");
+  for (;;)
+  {
+    struct proc *min_time_proc = proc;
+    intr_on(); // Enable interrupts to avoid deadlock
+
+    int min_creationTime = __INT32_MAX__;
+    // Find the process with the minimum creation time that is runnable
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      if ((p->state == RUNNABLE) && (p->ctime < min_creationTime)) // If the process is runnable and has a lower creation time
+      {
+        min_time_proc = p;
+        min_creationTime = p->ctime;
+      }
+    }
+    // min_time_proc contains the process with the minimum creation time that is runnable
+    // min contains the minimum creation time
+
+    acquire(&min_time_proc->lock);
+    p = min_time_proc;
+    if (p->state == RUNNABLE)
+    {
+      p->state = RUNNING;              // Change the state of the process to running
+      c->proc = p;                     // Set the current process to the process with the minimum creation time
+      swtch(&c->context, &p->context); // Switch to the process with the minimum creation time
+
+      // Set the current process to 0 since the process has finished running therefore it is not the current process anymore
+      c->proc = 0;
+    }
+    release(&p->lock);
+  }
+#elif defined(MLFQ)
+  printf("MLFQ has been chosen as the scheduler for the OS\n");
+  for (;;)
+  {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on(); // Enable interrupts to avoid deadlock
+
+    // Aging of the process
+    for (p = proc; p < &proc[NPROC]; p++) // Iterate through all processes
+    {
+      if (p->state == RUNNABLE && (ticks - (p->entry_time)) >= 128) // If the process is runnable and has been in the queue for more than 128 ticks
+      {
+        if (p->check_interval == 1) // If the process is in the queue
+        {
+          delete (&(Queue[p->level].head), p->pid); // Delete the process from the queue
+          Queue[p->level].curr_size--;              // Decrement the size of the queue
+          p->check_interval = 0;                    // Set the check interval to 0
+        }
+        if (p->level) // If the process is not in the highest queue
+        {
+          p->level--; // Move the process to the higher queue
+        }
+        p->entry_time = ticks; // Update the entry time of the process
+      }
+    }
+
+    // Enqueue runnable processes
+    for (p = proc; p < &proc[NPROC]; p++) //  Iterate through all processes again to find runnable processes
+    {
+      if (p->state == RUNNABLE && p->check_interval == 0)
+      {
+        enqueue(&(Queue[p->level].head), p); // Enqueue the process to the queue
+        Queue[p->level].curr_size++;         // Increment the size of the queue
+        p->check_interval = 1;               // Set the check interval to 1
+      }
+    }
+
+    // Find the next process to run
+    int flag = 0;                           // Flag to check if a process has been found
+    for (int q_lev = 0; q_lev < 4; q_lev++) // Iterate through all queues
+    {
+      while (Queue[q_lev].curr_size)
+      {
+        p = front(&(Queue[q_lev].head)); // Get the front process in the queue
+        dequeue(&(Queue[q_lev].head));   // Dequeue the front process in the queue
+        Queue[q_lev].curr_size--;        // Decrement the size of the queue
+        p->check_interval = 0;           // Set the check interval to 0
+        if (p->state == RUNNABLE)
+        {
+          p->entry_time = ticks; // Update the entry time of the process
+          flag = 1;              // Set the flag to 1
+          break;
+        }
+      }
+      // if a process has been found, break out of the loop
+      if (flag == 1)
+      {
+        break;
+      }
+    }
+
+    if (p == 0) //  If no process has been found
+    {
+      continue;
+    }
+
+    if (p->state == RUNNABLE)
+    {
+      acquire(&p->lock);
+      // Assign time slice based on process level
+      int timeslices[] = {1, 3, 9, 15};
+      p->timeslice = timeslices[p->level];
+
+      p->state = RUNNING;
+      c->proc = p;
+      p->entry_time = ticks;
+      swtch(&c->context, &p->context);
+      c->proc = 0;
+      release(&p->lock);
+    }
+  }
+
+#elif defined(RR)
+  // was already given
+  printf("RR has been chosen as the scheduler for the process\n");
+
   for (;;)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
@@ -498,6 +774,7 @@ void scheduler(void)
       release(&p->lock);
     }
   }
+#endif
 }
 
 // Switch to scheduler.  Must hold only p->lock
@@ -708,7 +985,7 @@ void procdump(void)
       state = states[p->state];
     else
       state = "???";
-    printf("%d %s %s", p->pid, state, p->name);
+    printf("%d %s %s %d", p->pid, state, p->name, p->level); // printing the level which the process is running in MLFQ
     printf("\n");
   }
 }
@@ -777,6 +1054,13 @@ void update_time()
     if (p->state == RUNNING)
     {
       p->rtime++;
+/*
+ADDED CODE FOR UPDATING TIME FOR MLFQ
+*/
+#ifdef MLFQ
+      p->run_time[p->level]++;
+      p->timeslice--;
+#endif
     }
     release(&p->lock);
   }
