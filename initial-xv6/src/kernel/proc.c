@@ -126,7 +126,16 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-  p->readcount = 0;
+
+  // for getreadcount
+  p->readcount = 0; // added // to keep track of the number of read system calls
+
+  // for sigalarm and sigreturn
+  p->signal_state = 0;   // added   //  to keep track of the state of the signal
+  p->signal_handler = 0; // added   //  to keep track of the signal handler
+  p->interval = 0;       // added   // to keep track of the interval
+  p->num_ticks = 0;      // added   // to keep track of the number of ticks
+  p->alarm_trapf = 0;    // added   // to keep track of the trapframe
 
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0)

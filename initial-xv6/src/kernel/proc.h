@@ -95,6 +95,25 @@ enum procstate
 // Per-process state
 struct proc
 {
+  /*
+   MANUALLY DEFINED VARIABLES
+  */
+  // For getreadcount
+  int readcount;
+
+  // For sigalarm and sigreturn
+  int signal_state;
+  uint64 signal_handler;
+  int interval;
+  int num_ticks;
+  struct trapframe *alarm_trapf;
+
+  /*
+
+  END OF MANUAALLY DEFINED VARIABLES
+
+  */
+
   struct spinlock lock;
 
   // p->lock must be held when using these:
@@ -108,7 +127,6 @@ struct proc
   struct proc *parent; // Parent process
 
   // these are private to the process, so p->lock need not be held.
-  int readcount;
   uint64 kstack;               // Virtual address of kernel stack
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table

@@ -1,1 +1,1 @@
-/usr/bin/env: ‘expect’: No such file or directory
+couldn't read file "../../tester/run-xv6-command.exp": permission denied

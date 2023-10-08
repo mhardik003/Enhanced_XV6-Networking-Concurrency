@@ -10,11 +10,59 @@
   MANUAL CODE WRITTEN FOR ASSIGNMENT
 */
 
-
 uint64
 sys_getreadcount(void)
 {
   return myproc()->readcount;
+}
+
+uint64
+sys_sigalarm(void)
+{
+  int interval;
+  uint64 handler;
+
+  // Get the interval and handler address from the user space.
+  argint(0, &interval);
+  argaddr(1, &handler);
+
+  struct proc *p = myproc(); // Get the current process
+
+  // Ensure atomic operations to prevent race conditions.
+  acquire(&p->lock);
+
+  p->interval = interval;      // Set the interval for the current process
+  p->signal_handler = handler; // Set the signal handler for the current process
+
+  release(&p->lock);
+
+  return 0;
+}
+
+uint64
+sys_sigreturn(void)
+{
+  struct proc *p = myproc(); // Get the current process
+
+  // Ensure atomic operations to prevent race conditions.
+  acquire(&p->lock);
+
+  // Check if alarm_trapf is not NULL before performing operations.
+  if (p->alarm_trapf != 0)
+  {
+    memmove(p->trapframe, p->alarm_trapf, PGSIZE); // Restore the trapframe of the current process
+    kfree(p->alarm_trapf);                         // Free the memory allocated for the alarm_trapf
+    p->alarm_trapf = 0;                            // Reset the alarm_trapf
+  }
+
+  p->num_ticks = 0;    // Reset the number of ticks
+  p->signal_state = 0; // Reset the signal state
+
+  release(&p->lock);
+
+  usertrapret(); // Return to user space
+
+  return 0;
 }
 
 /*
@@ -123,6 +171,3 @@ sys_waitx(void)
     return -1;
   return ret;
 }
-
-
-

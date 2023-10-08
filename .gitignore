@@ -8,3 +8,4 @@ _*
 kernel
 mkfs
 initcode
+*.img

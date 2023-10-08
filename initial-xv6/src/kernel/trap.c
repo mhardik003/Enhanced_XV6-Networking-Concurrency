@@ -80,8 +80,41 @@ void usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if (which_dev == 2)
-    yield();
+  {
 
+    // Ensure atomic operations to prevent race conditions.
+    acquire(&p->lock);
+
+    if (p->interval > 0 && p->signal_state == 0)
+    {
+      p->num_ticks++;
+      if (p->num_ticks >= p->interval)
+      {
+        p->num_ticks = 0;
+        p->signal_state = 1;
+
+        // Allocate memory for alarm_trapf and check for allocation failure.
+        p->alarm_trapf = kalloc();
+        if (p->alarm_trapf == 0)
+        {
+          // Handle memory allocation failure, e.g., log an error or reset signal_state.
+          p->signal_state = 0;
+        }
+        else
+        {
+          // Ensure memmove is safe, i.e., trapframe and alarm_trapf point to valid memory.
+          memmove(p->alarm_trapf, p->trapframe, PGSIZE);
+
+          // Ensure signal_handler points to a valid function before modifying epc.
+
+          p->trapframe->epc = p->signal_handler;
+        }
+      }
+    }
+
+    release(&p->lock);
+  }
+  yield();
   usertrapret();
 }
 
