@@ -132,7 +132,10 @@ if (myproc() && myproc()->state == RUNNING)
         // Check if the process is not in the last queue
         if (p->level < 3) 
         {
+            // printf("%d %d %d\n", p->pid, p->level,  ticks - 1);
             p->level++; // Move the process to the next queue
+            // printf("%d %d %d\n", p->pid, p->level, ticks);
+
             yield();    // Relinquish the processor
         }
     }

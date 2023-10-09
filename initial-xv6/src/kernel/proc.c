@@ -675,7 +675,7 @@ void scheduler(void)
     // Aging of the process
     for (p = proc; p < &proc[NPROC]; p++) // Iterate through all processes
     {
-      if (p->state == RUNNABLE && (ticks - (p->entry_time)) >= 128) // If the process is runnable and has been in the queue for more than 128 ticks
+      if (p->state == RUNNABLE && (ticks - (p->entry_time)) >= 30) // If the process is runnable and has been in the queue for more than 128 ticks
       {
         if (p->check_interval == 1) // If the process is in the queue
         {
@@ -685,7 +685,9 @@ void scheduler(void)
         }
         if (p->level) // If the process is not in the highest queue
         {
+          // printf("%d %d %d\n", p->pid, p->level, ticks - 1);
           p->level--; // Move the process to the higher queue
+          // printf("%d %d %d\n", p->pid, p->level, ticks);
         }
         p->entry_time = ticks; // Update the entry time of the process
       }
