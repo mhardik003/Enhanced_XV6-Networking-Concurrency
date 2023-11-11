@@ -108,3 +108,37 @@ sys_waitx(void)
     return -1;
   return ret;
 }
+
+uint64 sys_setpriority(void)
+{
+  int pid, new_priority;
+  argint(0, &pid);
+  argint(1, &new_priority);
+  if (new_priority < 0 || new_priority > 100)
+    return -1;
+
+  struct proc *p;
+  int old_priority = 999999999; // assuming the best priority is the one which is the least
+
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if (p->pid == pid)
+    {
+      acquire(&p->lock);
+
+      old_priority = p->SP;
+      p->SP = new_priority;
+      p->RBI = 25;  // Reset RBI
+      update_dp(p); // Update DP based on new SP and RBI
+      release(&p->lock);
+      break;
+    }
+  }
+
+  if (old_priority != -1 && new_priority < old_priority)
+  {
+    yield(); // Trigger rescheduling if priority is increased
+  }
+
+  return old_priority;
+}

@@ -152,6 +152,13 @@ found:
   p->rtime = 0;
   p->etime = 0;
   p->ctime = ticks;
+
+  p->RTime = 0; // For PBS
+  p->WTime = 0; // For PBS
+  p->STime = 0;
+  p->numScheduled = 0;
+  p->SP = 50;
+
   return p;
 }
 
@@ -175,6 +182,16 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+
+  p->rtime = 0; // For PBS now
+  p->etime = 0;
+  p->RTime = 0;
+  p->WTime = 0;
+  p->STime = 0;
+  p->numScheduled = 0;
+  p->SP = 50; // Since we need to reset the SP to 50 after the process is done executing as per the program
+
+  return;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -458,12 +475,68 @@ int wait(uint64 addr)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
+void selectHigherPriorityProcess(struct proc **selectedProc, struct proc *currentProc)
+{
+  acquire(&(*selectedProc)->lock);
+  struct proc *oldSelectedProc = *selectedProc;
+
+  // Compare the number of times each process has been scheduled and their creation time.
+  if ((*selectedProc)->numScheduled == currentProc->numScheduled)
+  {
+    // as given in the question we have to sort accordingly if the processes have been scheduled equal number of times
+    if ((*selectedProc)->ctime > currentProc->ctime)
+    {
+      *selectedProc = currentProc;
+    }
+  }
+  else if (currentProc->numScheduled < (*selectedProc)->numScheduled)
+  {
+    *selectedProc = currentProc;
+  }
+  // else the current process will be the selected process
+
+  release(&oldSelectedProc->lock);
+}
+int clampDP(int DP)
+{
+  // check if the DP of the process should be between 0 and 100
+  if (DP > 100)
+    return 100;
+  if (DP < 0)
+    return 0;
+  return DP;
+}
+void scheduleProcess(struct proc *procToRun, struct cpu *c)
+{
+
+  acquire(&procToRun->lock);
+  if (procToRun->state == RUNNABLE)
+  {
+    int startTime = ticks;
+    c->proc = procToRun; // to be run now
+    procToRun->RTime = procToRun->STime = 0; // since now we want to keep them from 0 again (unlike the main proc vars)
+    procToRun->numScheduled++; // since it is going to be scheduled
+    procToRun->state = RUNNING;
+
+    swtch(&c->context, &procToRun->context); // changing the context for the process
+
+    // Update running time and dynamic priority.
+    procToRun->RTime = ticks - startTime; // updated the RTime for the selected process
+    update_dp(procToRun); // update the Dynamic Probablity
+    procToRun->SP = clampDP(procToRun->DP); // making the static prob same as the dynamic prob
+    c->proc = 0; // 
+  }
+  release(&procToRun->lock);
+}
+
 void scheduler(void)
 {
+#ifndef PBS
   struct proc *p;
   struct cpu *c = mycpu();
 
   c->proc = 0;
+
   for (;;)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
@@ -487,6 +560,55 @@ void scheduler(void)
       }
       release(&p->lock);
     }
+  }
+#endif
+#ifdef PBS
+  printf("Using PBS\n");
+  for (;;)
+  {
+    struct proc *p;
+    struct cpu *c = mycpu();
+    c->proc = 0;
+    intr_on(); // Enable interrupts to avoid deadlock.
+
+    int lowestPriority = 9999999;     // Initialize with the highest priority value.
+    struct proc *selectedProc = 0; // This will hold the process with the highest priority.
+
+    // Iterate over all processes to find the one with the highest priority.
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE)
+      {
+        // Check for process with equal priority.
+        if (p->SP == lowestPriority)
+        {
+          // Ensure selectedProc is valid and not the same as the current process.
+          if (selectedProc && selectedProc != p)
+          {
+            selectHigherPriorityProcess(&selectedProc, p);
+          }
+          else
+          {
+            selectedProc = p;
+          }
+        }
+        // Check for a process with higher priority.
+        else if (lowestPriority > p->SP)
+        {
+          lowestPriority = p->SP;
+          selectedProc = p;
+        }
+      }
+      release(&p->lock);
+    }
+
+    // Schedule the selected process.
+    if (selectedProc) // check if it is legit
+    {
+      scheduleProcess(selectedProc, c);
+    }
+#endif
   }
 }
 
@@ -764,10 +886,68 @@ void update_time()
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
+    if (p->state == RUNNABLE)
+    {
+      p->WTime++;
+    }
+    if (p->state == SLEEPING)
+    {
+      p->STime++;
+    }
     if (p->state == RUNNING)
     {
+      p->RTime++;
       p->rtime++;
     }
     release(&p->lock);
   }
+}
+
+// Helper functions for PBS
+float max(float a, float b)
+{
+  if (a > b)
+  {
+    return a;
+  }
+  else
+  {
+    return b;
+  }
+}
+
+float min(float a, float b)
+{
+  if (a < b)
+  {
+    return a;
+  }
+  else
+  {
+    return b;
+  }
+}
+
+// For PBS
+// Assuming 'struct proc' is defined in this file
+
+int calculate_rbi(struct proc *p)
+{
+  if (!p)
+    return 0; // Safety check
+
+  int numerator = 3 * p->RTime - p->STime - p->WTime;
+  int denominator = p->RTime + p->WTime + p->STime + 1;
+  int rbi = numerator / denominator * 50;
+  rbi = (int)rbi;
+  return rbi > 0 ? rbi : 0; // Ensure RBI is non-negative
+}
+
+void update_dp(struct proc *p)
+{
+  p->RBI = calculate_rbi(p);
+  int temp = p->SP + p->RBI;
+  p->DP = temp < 100 ? temp : 100;
+  // printf("meowmeow\n");
+  // p->DP = min(p->SP + p->RBI, 100);
 }

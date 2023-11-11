@@ -119,6 +119,16 @@ struct proc
   uint rtime;                  // How long the process ran for
   uint ctime;                  // When was the process created
   uint etime;                  // When did the process exited
+
+  uint SP;          // Static Priority
+  uint DP;          // Dynamic Priority
+  uint RBI;         // Recent Behavior Index
+  uint RTime;       // Running Time
+  uint STime;       // Sleeping Time
+  uint WTime;       // Waiting Time
+  uint start_time; // Process Start Time
+  uint numScheduled;           // How many times the process was scheduled
+
 };
 
 extern struct proc proc[NPROC];

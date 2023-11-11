@@ -82,6 +82,8 @@ void panic(char *) __attribute__((noreturn));
 void printfinit(void);
 
 // proc.c
+int calculate_rbi(struct proc *p);
+void update_dp(struct proc *);
 int cpuid(void);
 void exit(int);
 int fork(void);
