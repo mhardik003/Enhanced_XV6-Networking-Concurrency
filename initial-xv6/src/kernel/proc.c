@@ -153,11 +153,11 @@ found:
   p->etime = 0;
   p->ctime = ticks;
 
-  p->RTime = 0; // For PBS
-  p->WTime = 0; // For PBS
+  p->RTime = 0; 
+  p->WTime = 0; 
   p->STime = 0;
   p->numScheduled = 0;
-  p->SP = 50;
+  p->SP = 50; // Since we have been asked to set it to 50 by default
 
   return p;
 }

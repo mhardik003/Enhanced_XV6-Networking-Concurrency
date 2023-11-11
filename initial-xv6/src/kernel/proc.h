@@ -1,6 +1,5 @@
 // Saved registers for kernel context switches.
-struct context
-{
+struct context {
   uint64 ra;
   uint64 sp;
 
@@ -20,8 +19,7 @@ struct context
 };
 
 // Per-CPU state.
-struct cpu
-{
+struct cpu {
   struct proc *proc;      // The process running on this cpu, or null.
   struct context context; // swtch() here to enter scheduler().
   int noff;               // Depth of push_off() nesting.
@@ -42,8 +40,7 @@ extern struct cpu cpus[NCPU];
 // the trapframe includes callee-saved user registers like s0-s11 because the
 // return-to-user path via usertrapret() doesn't return through
 // the entire kernel call stack.
-struct trapframe
-{
+struct trapframe {
   /*   0 */ uint64 kernel_satp;   // kernel page table
   /*   8 */ uint64 kernel_sp;     // top of process's kernel stack
   /*  16 */ uint64 kernel_trap;   // usertrap()
@@ -82,19 +79,10 @@ struct trapframe
   /* 280 */ uint64 t6;
 };
 
-enum procstate
-{
-  UNUSED,
-  USED,
-  SLEEPING,
-  RUNNABLE,
-  RUNNING,
-  ZOMBIE
-};
+enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
-struct proc
-{
+struct proc {
   struct spinlock lock;
 
   // p->lock must be held when using these:
@@ -120,15 +108,14 @@ struct proc
   uint ctime;                  // When was the process created
   uint etime;                  // When did the process exited
 
-  uint SP;          // Static Priority
-  uint DP;          // Dynamic Priority
-  uint RBI;         // Recent Behavior Index
-  uint RTime;       // Running Time
-  uint STime;       // Sleeping Time
-  uint WTime;       // Waiting Time
-  uint start_time; // Process Start Time
-  uint numScheduled;           // How many times the process was scheduled
-
+  uint SP;           // Static Priority
+  uint DP;           // Dynamic Priority
+  uint RBI;          // Recent Behavior Index
+  uint RTime;        // Running Time
+  uint STime;        // Sleeping Time
+  uint WTime;        // Waiting Time
+  uint start_time;   // Process Start Time
+  uint numScheduled; // How many times the process was scheduled
 };
 
 extern struct proc proc[NPROC];
