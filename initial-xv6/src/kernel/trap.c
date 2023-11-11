@@ -64,6 +64,10 @@ void usertrap(void)
 
     syscall();
   }
+  // check if the page fault is due to a COW page
+  else if (r_scause() == 15 && (dup_pg(p->pagetable, r_stval())) != -1)
+  {
+  }
   else if ((which_dev = devintr()) != 0)
   {
     // ok
@@ -146,6 +150,7 @@ void kerneltrap()
 
   if ((which_dev = devintr()) == 0)
   {
+    // printf("%d\n", r_scause());
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
     panic("kerneltrap");

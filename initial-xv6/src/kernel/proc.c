@@ -314,7 +314,7 @@ int fork(void)
   }
 
   // Copy user memory from parent to child.
-  if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0)
+  if (uvmcowpy(p->pagetable, np->pagetable, p->sz) < 0)
   {
     freeproc(np);
     release(&np->lock);
@@ -513,18 +513,18 @@ void scheduleProcess(struct proc *procToRun, struct cpu *c)
   if (procToRun->state == RUNNABLE)
   {
     int startTime = ticks;
-    c->proc = procToRun; // to be run now
+    c->proc = procToRun;                     // to be run now
     procToRun->RTime = procToRun->STime = 0; // since now we want to keep them from 0 again (unlike the main proc vars)
-    procToRun->numScheduled++; // since it is going to be scheduled
+    procToRun->numScheduled++;               // since it is going to be scheduled
     procToRun->state = RUNNING;
 
     swtch(&c->context, &procToRun->context); // changing the context for the process
 
     // Update running time and dynamic priority.
-    procToRun->RTime = ticks - startTime; // updated the RTime for the selected process
-    update_dp(procToRun); // update the Dynamic Probablity
+    procToRun->RTime = ticks - startTime;   // updated the RTime for the selected process
+    update_dp(procToRun);                   // update the Dynamic Probablity
     procToRun->SP = clampDP(procToRun->DP); // making the static prob same as the dynamic prob
-    c->proc = 0; // 
+    c->proc = 0;                            //
   }
   release(&procToRun->lock);
 }
@@ -571,7 +571,7 @@ void scheduler(void)
     c->proc = 0;
     intr_on(); // Enable interrupts to avoid deadlock.
 
-    int lowestPriority = 9999999;     // Initialize with the highest priority value.
+    int lowestPriority = 9999999;  // Initialize with the highest priority value.
     struct proc *selectedProc = 0; // This will hold the process with the highest priority.
 
     // Iterate over all processes to find the one with the highest priority.
@@ -880,26 +880,33 @@ int waitx(uint64 addr, uint *wtime, uint *rtime)
   }
 }
 
+void update__proc_stats(struct proc *p)
+{
+  acquire(&p->lock);
+  if (p->state == RUNNING)
+  {
+    p->RTime++;
+    p->rtime++;
+  }
+  if (p->state == RUNNABLE)
+  {
+    p->WTime++;
+  }
+  if (p->state == SLEEPING)
+  {
+    p->STime++;
+  }
+  release(&p->lock);
+}
+
 void update_time()
 {
   struct proc *p;
   for (p = proc; p < &proc[NPROC]; p++)
   {
-    acquire(&p->lock);
-    if (p->state == RUNNABLE)
-    {
-      p->WTime++;
-    }
-    if (p->state == SLEEPING)
-    {
-      p->STime++;
-    }
-    if (p->state == RUNNING)
-    {
-      p->RTime++;
-      p->rtime++;
-    }
-    release(&p->lock);
+    // #ifdef PBS
+    update__proc_stats(p);
+    // #endif
   }
 }
 
