@@ -1,4 +1,5 @@
 #include "1.h"
+#include <math.h>
 
 // int coffee_types_time[MAX_CUSTOMERS];
 // int customer_coffee_type[MAX_CUSTOMERS];
@@ -37,7 +38,6 @@ int B, K, N;
 // One semaphore per barista.
 sem_t barista_semaphores[MAX_BARISTAS];
 
-
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int wasted_coffee = 0;
@@ -51,13 +51,12 @@ customer customers[MAX_CUSTOMERS];
 //     printf("%s%s%s\n", color, msg, RESET);
 // }
 
-
 void *customer_handler(void *arg)
 {
     // order_info *order = (order_info *)arg;
     customer *c = (customer *)arg;
 
-    c->abs_start_time = (int)time(NULL); // Record the start time for this customer.
+    c->abs_start_time = floor(time(NULL)); // Record the start time for this customer.
 
     int served = 0;
     struct timespec ts;
@@ -75,14 +74,14 @@ void *customer_handler(void *arg)
         {
             // printf(YELLOW "Customer %d orders a %s" RESET "\n", c->id + 1, c->coffee_name);
             sleep(1);
-            int order_start_time = (int)(time(NULL) - c->abs_start_time);
+            int order_start_time = floor((time(NULL)) - c->abs_start_time);
             // average_wait_time += order_start_time - c->arrival_time;
             printf(CYAN "Barista %d begins preparing the order of customer %d at %d second(s)" RESET "\n", i + 1, c->id + 1, order_start_time);
 
             // Simulate the time taken to prepare the coffee.
             sleep(c->coffee_prep_time);
 
-            int order_complete_time = (int)(time(NULL) - c->abs_start_time);
+            int order_complete_time = floor((time(NULL)) - c->abs_start_time);
 
             printf(BLUE "Barista %d successfully completes the order of customer %d at %d seconds" RESET "\n", i + 1, c->id + 1, order_complete_time);
             served = 1;
@@ -103,30 +102,30 @@ void *customer_handler(void *arg)
         {
             if (sem_timedwait(&barista_semaphores[i], &ts) == 0)
             {
-                int barista_takes_order = (int)(time(NULL));
+                int barista_takes_order = floor((time(NULL)));
                 int delay = barista_takes_order - c->abs_start_time - c->arrival_time;
-                average_wait_time += delay-1;
+                average_wait_time += delay - 1;
 
                 // printf("Delay for customer %d is %d\n", c->id, delay);
 
                 if (c->tolerance < delay + c->coffee_prep_time)
                 {
-                    int order_start_time = (int)(time(NULL) - c->abs_start_time);
+                    // sleep(1);
+                    int order_start_time = floor(time(NULL)) - c->abs_start_time;
                     printf(CYAN "Barista %d begins preparing the order of customer %d at %d second(s)" RESET "\n", i + 1, c->id + 1, order_start_time);
 
                     // Simulate the time taken to prepare the coffee.
                     // printf("Sleeping for customoer %d for %d seconds\n", c->id + 1, c->tolerance - delay);
                     sleep(c->tolerance - delay);
 
-                    printf(RED "Customer %d leaves without their order at %d second(s)" RESET "\n", c->id + 1, c->tolerance + order_start_time - delay);
+                    printf(RED "Customer %d leaves without their order at %d second(s)" RESET "\n", c->id + 1, c->tolerance + order_start_time - delay + 1);
                     wasted_coffee++;
 
                     // printf("Sleeping for customer %d for %d seconds\n ", c->id +1, c->coffee_prep_time - c->tolerance - delay);
                     sleep(c->coffee_prep_time - c->tolerance + delay);
 
-                    int order_complete_time = (int)(time(NULL) - c->abs_start_time);
+                    int order_complete_time = floor((time(NULL)) - c->abs_start_time);
                     printf(BLUE "Barista %d successfully completes the order of customer %d at %d second(s)" RESET "\n", i + 1, c->id + 1, order_complete_time);
-
 
                     sem_post(&barista_semaphores[i]);
                     // free(c);
@@ -135,14 +134,14 @@ void *customer_handler(void *arg)
 
                 // printf(YELLOW "Customer %d orders an espresso" RESET "\n", c->id + 1);
                 sleep(1);
-                int order_start_time = (int)(time(NULL) - c->abs_start_time);
-                
+                int order_start_time = floor((time(NULL)) - c->abs_start_time);
+
                 printf(CYAN "Barista %d begins preparing the order of customer %d at %d second(s)" RESET "\n", i + 1, c->id + 1, order_start_time);
 
                 // Simulate the time taken to prepare the coffee.
                 sleep(c->coffee_prep_time);
 
-                int order_complete_time = (int)(time(NULL) - c->abs_start_time);
+                int order_complete_time = floor((time(NULL)) - c->abs_start_time);
                 printf(BLUE "Barista %d successfully completes the order of customer %d at %d second(s)" RESET "\n", i + 1, c->id + 1, order_complete_time);
                 served = 1;
                 // printf("Served the customer %d", s)
@@ -152,7 +151,7 @@ void *customer_handler(void *arg)
         }
     }
 
-    int customer_leave_time = (int)(time(NULL) - c->abs_start_time);
+    int customer_leave_time = floor((time(NULL)) - c->abs_start_time);
     if (served)
     {
         printf(GREEN "Customer %d leaves with their order at %d second(s)" RESET "\n", c->id + 1, customer_leave_time);
@@ -171,7 +170,7 @@ void check_input()
 {
 
     printf("---- PRINTING THE COFFEE TYPES ----\n");
-    printf("\n");
+    // printf("\n");
     for (int i = 0; i < K; i++)
     {
         printf("Name of the coffee : %s\t|\tIts Prep Time : %d\n", coffees[i].name, coffees[i].prep_time);
@@ -223,7 +222,7 @@ void get_input()
         }
     }
 
-    check_input();
+    // check_input();
 }
 
 void initialize_threads_semaphores()
