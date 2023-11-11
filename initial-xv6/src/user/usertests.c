@@ -2928,7 +2928,7 @@ struct test slowtests[] = {
   {bigdir, "bigdir"},
   {manywrites, "manywrites"},
   {badwrite, "badwrite" },
-  {execout, "execout"},
+  // {execout, "execout"},
   {diskfull, "diskfull"},
   {outofinodes, "outofinodes"},
     

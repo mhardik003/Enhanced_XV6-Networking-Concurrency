@@ -14,7 +14,7 @@ int main()
   for (n = 0; n < NFORK; n++)
   {
     pid = fork();
-    setpriority(50-10+n, pid);
+    setpriority(pid, pid);
 
     if (pid < 0)
       break;
