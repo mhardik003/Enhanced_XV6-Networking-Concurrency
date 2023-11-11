@@ -531,7 +531,7 @@ void scheduleProcess(struct proc *procToRun, struct cpu *c)
 
 void scheduler(void)
 {
-#ifndef PBS
+#ifdef RR
   struct proc *p;
   struct cpu *c = mycpu();
 
@@ -608,8 +608,8 @@ void scheduler(void)
     {
       scheduleProcess(selectedProc, c);
     }
-#endif
   }
+#endif
 }
 
 // Switch to scheduler.  Must hold only p->lock
