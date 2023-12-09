@@ -374,8 +374,6 @@ err:
   return -1;
 }
 
-
-
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
 void uvmclear(pagetable_t pagetable, uint64 va)
@@ -398,7 +396,6 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   while (len > 0)
   {
     va0 = PGROUNDDOWN(dstva);
-
 
     if (dup_pg(pagetable, va0) < 0) // check if the page is cow'd
       return -1;

@@ -1,6 +1,3 @@
-# OSN Mini Project 3
-
-
 ## PBS Scheduling in XV6
 Preemptive Priority-Based Scheduling (PBS) is a type of scheduling algorithm commonly used in real-time operating systems where tasks are assigned priorities, and the scheduler selects tasks for execution based on these priorities. In this approach, a currently running task can be preempted (interrupted) if a higher-priority task becomes ready to run, ensuring that the most critical tasks receive processor time first. This method is beneficial in systems where tasks have varying levels of importance and response time requirements. The preemptive nature allows for more responsive handling of high-priority tasks at the cost of potentially greater context-switching overhead, compared to non-preemptive scheduling.
 

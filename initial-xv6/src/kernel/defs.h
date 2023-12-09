@@ -64,7 +64,7 @@ void *kalloc(void);
 void kfree(void *);
 void kinit(void);
 int cowmappage(pagetable_t, uint64, uint64, uint64, int); // For CoW
-int dup_pg(pagetable_t, uint64); // For CoW
+int dup_pg(pagetable_t, uint64);                          // For CoW
 
 // log.c
 void initlog(int, struct superblock *);
